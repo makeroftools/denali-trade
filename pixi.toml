@@ -1,0 +1,14 @@
+[workspace]
+authors = ["Peter Alexander <makeroftools@creativedevelopment.systems>"]
+channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
+name = "denali-trade"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+rust = ">=1.92.0,<1.93"
+
+[activation]
+env = { RUSTFLAGS = "-C linker=clang" }

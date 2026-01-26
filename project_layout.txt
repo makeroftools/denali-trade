@@ -1,0 +1,22 @@
+.
+├── Cargo.lock
+├── Cargo.toml
+├── examples
+│   ├── demo.rs
+│   ├── print_candles.rs
+│   ├── print_l2s.rs
+│   ├── print_trades.rs
+│   ├── user_fills.rs
+│   └── validation.rs
+├── pixi.lock
+├── pixi.toml
+├── project_layout.txt
+└── src
+    ├── candles.rs
+    ├── l2.rs
+    ├── main.rs
+    ├── pipeline.rs
+    ├── trades.rs
+    └── user_fills.rs
+
+3 directories, 17 files

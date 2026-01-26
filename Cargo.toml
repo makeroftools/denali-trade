@@ -1,0 +1,43 @@
+[package]
+name = "denali-trade"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+arrow = { version = "57.2.0", features = ["prettyprint"] }
+flume = "0.12.0"
+futures = "0.3.31"
+hypersdk = "0.1.6"
+num-traits = "0.2.19"
+parquet = { version = "57.2.0", features = ["async", "arrow"] }
+tokio = { version = "1.49.0", features = ["full"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+rust_decimal = "*"
+tempfile = "*"
+
+[[example]]
+name = "demo"
+path = "examples/demo.rs"
+
+[[example]]
+name = "print_trades"
+path = "examples/print_trades.rs"
+
+[[example]]
+name = "print_candles"
+path = "examples/print_candles.rs"
+
+[[example]]
+name = "print_l2"
+path = "examples/print_l2.rs"
+
+[[example]]
+name = "validation"
+path = "examples/validation.rs"
+
+[[example]]
+name = "print_user_fills"
+path = "examples/print_user_fills.rs"
