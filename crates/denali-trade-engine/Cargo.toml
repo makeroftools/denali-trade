@@ -1,0 +1,16 @@
+[package]
+name = "denali-trade-engine"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+denali-core = { path = "../denali-core" }
+num-traits = "0.2"
+rust_decimal = "1.35"
+flume = "0.12"
+futures = "0.3"
+tokio = { version = "1.49", features = ["full"] }
+hypersdk = "0.2.0"

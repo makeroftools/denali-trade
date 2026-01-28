@@ -1,0 +1,12 @@
+[package]
+name = "denali-plot"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+denali-core = { path = "../denali-core" }
+denali-trade-engine = { path = "../denali-trade-engine" }
+plotters = { version = "0.3", default-features = false, features = ["all_series", "all_elements"] }
