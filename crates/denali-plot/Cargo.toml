@@ -3,7 +3,8 @@ name = "plotters"
 version = "0.1.0"
 edition = "2021"
 
-crate-type = ["cdylib", "rlib"]
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 plotters = { version = "0.3", default-features = false, features = ["all_series", "all_elements"] }

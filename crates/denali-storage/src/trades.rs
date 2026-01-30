@@ -1,5 +1,5 @@
 use anyhow::Result;
-use arrow::array::{Float64Array, StringArray, UInt64Array};
+use arrow::array::{StringArray, UInt64Array, Decimal128Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use hypersdk::hypercore::types::Trade;
@@ -8,6 +8,7 @@ use parquet::arrow::async_writer::AsyncArrowWriter;
 use std::sync::Arc;
 use tokio::fs::{self, File};
 use tokio::sync::mpsc::Receiver;
+use rust_decimal::{MathematicalOps, self};
 
 pub async fn write_trades_to_parquet(rx: Receiver<Trade>) -> Result<()> {
     const ROWS_PER_FILE: usize = 10000;
@@ -29,8 +30,8 @@ async fn write_trades(
     let schema = Arc::new(Schema::new(vec![
         Field::new("timestamp", DataType::UInt64, false),
         Field::new("coin", DataType::Utf8, false),
-        Field::new("price", DataType::Float64, false),
-        Field::new("size", DataType::Float64, false),
+        Field::new("price", DataType::Decimal128(28, 8), false),
+        Field::new("size", DataType::Decimal128(28, 8), false),
         Field::new("side", DataType::Utf8, false),
     ]));
 
@@ -40,8 +41,8 @@ async fn write_trades(
 
     let mut timestamps = Vec::with_capacity(batch_size);
     let mut coins = Vec::with_capacity(batch_size);
-    let mut prices = Vec::with_capacity(batch_size);
-    let mut sizes = Vec::with_capacity(batch_size);
+    let mut prices: Vec<rust_decimal::Decimal> = Vec::with_capacity(batch_size);
+    let mut sizes: Vec<rust_decimal::Decimal> = Vec::with_capacity(batch_size);
     let mut sides = Vec::with_capacity(batch_size);
 
     let mut total_trades = 0usize;
@@ -59,8 +60,8 @@ async fn write_trades(
 
         timestamps.push(t.time);
         coins.push(t.coin.clone());
-        prices.push(t.px.to_f64().expect("price → f64"));
-        sizes.push(t.sz.to_f64().expect("size → f64"));
+        prices.push(t.px);
+        sizes.push(t.sz);
         sides.push(t.side.to_string());
 
         total_trades += 1;
@@ -82,8 +83,12 @@ async fn write_trades(
                 vec![
                     Arc::new(UInt64Array::from(std::mem::take(&mut timestamps))),
                     Arc::new(StringArray::from(std::mem::take(&mut coins))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut prices))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut sizes))),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut prices).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut sizes).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
                     Arc::new(StringArray::from(std::mem::take(&mut sides))),
                 ],
             )?;
@@ -123,11 +128,15 @@ async fn write_trades(
         let batch = RecordBatch::try_new(
             schema.clone(),
             vec![
-                Arc::new(UInt64Array::from(timestamps)),
-                Arc::new(StringArray::from(coins)),
-                Arc::new(Float64Array::from(prices)),
-                Arc::new(Float64Array::from(sizes)),
-                Arc::new(StringArray::from(sides)),
+                Arc::new(UInt64Array::from(std::mem::take(&mut timestamps))),
+                Arc::new(StringArray::from(std::mem::take(&mut coins))),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut prices).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut sizes).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(StringArray::from(std::mem::take(&mut sides))),
             ],
         )?;
 

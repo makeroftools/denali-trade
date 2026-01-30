@@ -1,5 +1,5 @@
 use anyhow::Result;
-use arrow::array::{BooleanArray, Float64Array, StringArray, UInt64Array};
+use arrow::array::{BooleanArray, StringArray, UInt64Array, Decimal128Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use hypersdk::hypercore::types::L2Book;
@@ -8,6 +8,7 @@ use parquet::arrow::async_writer::AsyncArrowWriter;
 use std::sync::Arc;
 use tokio::fs::{self, File};
 use tokio::sync::mpsc::Receiver;
+use rust_decimal::{MathematicalOps, self};
 
 pub async fn write_l2_to_parquet(rx: Receiver<L2Book>) -> Result<()> {
     const ROWS_PER_FILE: usize = 10000;
@@ -31,8 +32,8 @@ async fn write_l2(
         Field::new("coin", DataType::Utf8, false),
         Field::new("is_snapshot", DataType::Boolean, false),
         Field::new("side", DataType::Utf8, false),
-        Field::new("price", DataType::Float64, false),
-        Field::new("size", DataType::Float64, false),
+        Field::new("price", DataType::Decimal128(28, 8), false),
+        Field::new("size", DataType::Decimal128(28, 8), false),
         Field::new("num_orders", DataType::UInt64, false),
     ]));
 
@@ -44,8 +45,8 @@ async fn write_l2(
     let mut coins: Vec<String> = Vec::with_capacity(batch_size);
     let mut is_snapshots: Vec<bool> = Vec::with_capacity(batch_size);
     let mut sides: Vec<String> = Vec::with_capacity(batch_size);
-    let mut prices: Vec<f64> = Vec::with_capacity(batch_size);
-    let mut sizes: Vec<f64> = Vec::with_capacity(batch_size);
+    let mut prices: Vec<rust_decimal::Decimal> = Vec::with_capacity(batch_size);
+    let mut sizes: Vec<rust_decimal::Decimal> = Vec::with_capacity(batch_size);
     let mut num_orders: Vec<u64> = Vec::with_capacity(batch_size);
 
     let mut total_l2books = 0usize;
@@ -69,8 +70,8 @@ async fn write_l2(
             coins.push(b.coin.clone());
             is_snapshots.push(is_snap);
             sides.push("bid".to_string());
-            prices.push(level.px.to_f64().expect("price → f64"));
-            sizes.push(level.sz.to_f64().expect("size → f64"));
+            prices.push(level.px);
+            sizes.push(level.sz);
             num_orders.push(level.n as u64);
         }
 
@@ -79,8 +80,8 @@ async fn write_l2(
             coins.push(b.coin.clone());
             is_snapshots.push(is_snap);
             sides.push("ask".to_string());
-            prices.push(level.px.to_f64().expect("price → f64"));
-            sizes.push(level.sz.to_f64().expect("size → f64"));
+            prices.push(level.px);
+            sizes.push(level.sz);
             num_orders.push(level.n as u64);
         }
 
@@ -105,8 +106,12 @@ async fn write_l2(
                     Arc::new(StringArray::from(std::mem::take(&mut coins))),
                     Arc::new(BooleanArray::from(std::mem::take(&mut is_snapshots))),
                     Arc::new(StringArray::from(std::mem::take(&mut sides))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut prices))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut sizes))),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut prices).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut sizes).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
                     Arc::new(UInt64Array::from(std::mem::take(&mut num_orders))),
                 ],
             )?;
@@ -146,13 +151,17 @@ async fn write_l2(
         let batch = RecordBatch::try_new(
             schema.clone(),
             vec![
-                Arc::new(UInt64Array::from(timestamps)),
-                Arc::new(StringArray::from(coins)),
-                Arc::new(BooleanArray::from(is_snapshots)),
-                Arc::new(StringArray::from(sides)),
-                Arc::new(Float64Array::from(prices)),
-                Arc::new(Float64Array::from(sizes)),
-                Arc::new(UInt64Array::from(num_orders)),
+                Arc::new(UInt64Array::from(std::mem::take(&mut timestamps))),
+                Arc::new(StringArray::from(std::mem::take(&mut coins))),
+                Arc::new(BooleanArray::from(std::mem::take(&mut is_snapshots))),
+                Arc::new(StringArray::from(std::mem::take(&mut sides))),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut prices).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut sizes).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(UInt64Array::from(std::mem::take(&mut num_orders))),
             ],
         )?;
 

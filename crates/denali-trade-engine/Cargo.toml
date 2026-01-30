@@ -8,8 +8,7 @@ path = "src/lib.rs"
 
 [dependencies]
 denali-core = { path = "../denali-core" }
-num-traits = "0.2"
-rust_decimal = "1.35"
+num-traits = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 hypersdk = { workspace = true }

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use arrow::array::{Float64Array, StringArray, UInt64Array};
+use arrow::array::{StringArray, UInt64Array};
+use arrow::array::Decimal128Array;
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use hypersdk::hypercore::types::Candle;
@@ -8,6 +9,7 @@ use parquet::arrow::async_writer::AsyncArrowWriter;
 use std::sync::Arc;
 use tokio::fs::{self, File};
 use tokio::sync::mpsc::Receiver;
+use rust_decimal::{MathematicalOps, self};
 
 pub async fn write_candles_to_parquet(rx: Receiver<Candle>) -> Result<()> {
     const ROWS_PER_FILE: usize = 10000;
@@ -31,11 +33,11 @@ async fn write_candles(
         Field::new("close_time", DataType::UInt64, false),
         Field::new("coin",       DataType::Utf8,   false),
         Field::new("interval",   DataType::Utf8,   false),
-        Field::new("open",       DataType::Float64, false),
-        Field::new("close",      DataType::Float64, false),
-        Field::new("high",       DataType::Float64, false),
-        Field::new("low",        DataType::Float64, false),
-        Field::new("volume",     DataType::Float64, false),
+        Field::new("open",       DataType::Decimal128(28, 8), false),
+        Field::new("close",      DataType::Decimal128(28, 8), false),
+        Field::new("high",       DataType::Decimal128(28, 8), false),
+        Field::new("low",        DataType::Decimal128(28, 8), false),
+        Field::new("volume",     DataType::Decimal128(28, 8), false),
         Field::new("num_trades", DataType::UInt64,  false),
     ]));
 
@@ -47,11 +49,11 @@ async fn write_candles(
     let mut close_times  = Vec::with_capacity(batch_size);
     let mut coins        = Vec::with_capacity(batch_size);
     let mut intervals    = Vec::with_capacity(batch_size);
-    let mut opens        = Vec::with_capacity(batch_size);
-    let mut closes       = Vec::with_capacity(batch_size);
-    let mut highs        = Vec::with_capacity(batch_size);
-    let mut lows         = Vec::with_capacity(batch_size);
-    let mut volumes      = Vec::with_capacity(batch_size);
+    let mut opens: Vec<rust_decimal::Decimal> = Vec::with_capacity(batch_size);
+    let mut closes: Vec<rust_decimal::Decimal>       = Vec::with_capacity(batch_size);
+    let mut highs: Vec<rust_decimal::Decimal>        = Vec::with_capacity(batch_size);
+    let mut lows: Vec<rust_decimal::Decimal>         = Vec::with_capacity(batch_size);
+    let mut volumes: Vec<rust_decimal::Decimal>      = Vec::with_capacity(batch_size);
     let mut num_trades   = Vec::with_capacity(batch_size);
 
     let mut total_candles = 0usize;
@@ -81,11 +83,11 @@ async fn write_candles(
         close_times.push(c.close_time);
         coins.push(c.coin.clone());
         intervals.push(c.interval.clone());
-        opens.push(c.open.to_f64().expect("open → f64"));
-        closes.push(c.close.to_f64().expect("close → f64"));
-        highs.push(c.high.to_f64().expect("high → f64"));
-        lows.push(c.low.to_f64().expect("low → f64"));
-        volumes.push(c.volume.to_f64().expect("volume → f64"));
+        opens.push(c.open);
+        closes.push(c.close);
+        highs.push(c.high);
+        lows.push(c.low);
+        volumes.push(c.volume);
         num_trades.push(c.num_trades);
 
         total_candles += 1;
@@ -109,11 +111,21 @@ async fn write_candles(
                     Arc::new(UInt64Array::from(std::mem::take(&mut close_times))),
                     Arc::new(StringArray::from(std::mem::take(&mut coins))),
                     Arc::new(StringArray::from(std::mem::take(&mut intervals))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut opens))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut closes))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut highs))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut lows))),
-                    Arc::new(Float64Array::from(std::mem::take(&mut volumes))),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut opens).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut closes).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut highs).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut lows).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
+                    Arc::new(Decimal128Array::from_iter_values(
+                        std::mem::take(&mut volumes).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                    )),
                     Arc::new(UInt64Array::from(std::mem::take(&mut num_trades))),
                 ],
             )?;
@@ -153,16 +165,26 @@ async fn write_candles(
         let batch = RecordBatch::try_new(
             schema.clone(),
             vec![
-                Arc::new(UInt64Array::from(open_times)),
-                Arc::new(UInt64Array::from(close_times)),
-                Arc::new(StringArray::from(coins)),
-                Arc::new(StringArray::from(intervals)),
-                Arc::new(Float64Array::from(opens)),
-                Arc::new(Float64Array::from(closes)),
-                Arc::new(Float64Array::from(highs)),
-                Arc::new(Float64Array::from(lows)),
-                Arc::new(Float64Array::from(volumes)),
-                Arc::new(UInt64Array::from(num_trades)),
+                Arc::new(UInt64Array::from(std::mem::take(&mut open_times))),
+                Arc::new(UInt64Array::from(std::mem::take(&mut close_times))),
+                Arc::new(StringArray::from(std::mem::take(&mut coins))),
+                Arc::new(StringArray::from(std::mem::take(&mut intervals))),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut opens).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut closes).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut highs).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut lows).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(Decimal128Array::from_iter_values(
+                    std::mem::take(&mut volumes).into_iter().map(|d| (d * rust_decimal::Decimal::TEN.powu(8)).to_i128().unwrap())
+                )),
+                Arc::new(UInt64Array::from(std::mem::take(&mut num_trades))),
             ],
         )?;
 
