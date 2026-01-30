@@ -1,12 +1,18 @@
 [package]
-name = "denali-plot"
+name = "plotters"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-denali-core = { path = "../denali-core" }
-denali-trade-engine = { path = "../denali-trade-engine" }
 plotters = { version = "0.3", default-features = false, features = ["all_series", "all_elements"] }
+plotters-canvas = "0.3"
+wasm-bindgen = "0.2.92"
+console_error_panic_hook = "0.1"
+wee_alloc = "0.4"
+gloo-timers = "0.3"
+web-sys = { version = "0.3", features = ["Window", "HtmlCanvasElement", "CanvasRenderingContext2d"] }
+leptos = { version = "0.6", features = ["csr"] }
+tokio = { version = "1", default-features = false, features = ["rt", "sync"] }
+futures = "0.3"

@@ -9,3 +9,7 @@ version = "0.1.0"
 
 [dependencies]
 rust = ">=1.92.0,<1.93"
+rust-std-wasm32-unknown-unknown = ">=1.92.0,<2"
+
+[activation]
+env = { RUSTFLAGS = "-C link-arg=-lc_nonshared -C linker=clang" }
