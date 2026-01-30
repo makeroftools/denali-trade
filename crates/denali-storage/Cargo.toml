@@ -10,10 +10,10 @@ path = "src/lib.rs"
 denali-core = { path = "../denali-core" }
 arrow = { version = "57.2.0", features = ["prettyprint"] }
 parquet = { version = "57.2.0", features = ["async", "arrow"] }
-anyhow = "1.0"
-futures = "0.3"
-tokio = { version = "1.49", features = ["full"] }
-hypersdk = "0.2.0"
+anyhow = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true }
+hypersdk = { workspace = true }
+tempfile = { workspace = true }
 num-traits = "0.2.19"
 rust_decimal = "1.40.0"
-tempfile = "3.24.0"

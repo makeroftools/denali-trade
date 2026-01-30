@@ -10,7 +10,7 @@ path = "src/lib.rs"
 denali-core = { path = "../denali-core" }
 num-traits = "0.2"
 rust_decimal = "1.35"
-futures = "0.3"
-tokio = { version = "1.49", features = ["full"] }
-hypersdk = "0.2.0"
-flume = "0.12.0"
+futures = { workspace = true }
+tokio = { workspace = true }
+hypersdk = { workspace = true }
+flume = { workspace = true }
