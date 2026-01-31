@@ -12,7 +12,7 @@ use tokio::sync::mpsc::Receiver;
 use rust_decimal::{MathematicalOps, self};
 
 pub async fn write_candles_to_parquet(rx: Receiver<Candle>) -> Result<()> {
-    const ROWS_PER_FILE: usize = 10000;
+    const ROWS_PER_FILE: usize = 100;
     const BATCH_SIZE: usize = 8192;
     const OUTPUT_DIR: &str = "data/candles";
     write_candles(rx, ROWS_PER_FILE, BATCH_SIZE, OUTPUT_DIR).await

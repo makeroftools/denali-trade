@@ -2416,6 +2416,7 @@ dependencies = [
  "arrow",
  "denali-core",
  "futures",
+ "hex",
  "hypersdk",
  "num-traits",
  "parquet",

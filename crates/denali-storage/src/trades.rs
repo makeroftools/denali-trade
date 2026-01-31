@@ -11,7 +11,7 @@ use tokio::sync::mpsc::Receiver;
 use rust_decimal::{MathematicalOps, self};
 
 pub async fn write_trades_to_parquet(rx: Receiver<Trade>) -> Result<()> {
-    const ROWS_PER_FILE: usize = 10000;
+    const ROWS_PER_FILE: usize = 100;
     const BATCH_SIZE: usize = 8192;
     const OUTPUT_DIR: &str = "data/trades";
     write_trades(rx, ROWS_PER_FILE, BATCH_SIZE, OUTPUT_DIR).await

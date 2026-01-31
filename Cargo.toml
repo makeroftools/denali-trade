@@ -15,8 +15,5 @@ futures = "0.3"
 anyhow = "1.0"
 flume = "0.12"
 num-traits = "0.2"
-rust_decimal = "1.40"          # ← pick one version
 hypersdk = "0.2.0"
-arrow = { version = "57.2.0", features = ["prettyprint"] }
-parquet = { version = "57.2.0", features = ["async", "arrow"] }
 tempfile = "3.24"              # or 3
